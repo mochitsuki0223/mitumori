@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>イラスト簡易見積もり表</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+        }
+        label {
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 8px;
+            display: block;
+        }
+        select, input[type="date"] {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1rem;
+            color: #475569;
+            background-color: #f8fafc;
+            transition: border-color 0.2s;
+        }
+        select:focus, input[type="date"]:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        .info-box {
+            background-color: #eef2ff;
+            border-left: 4px solid #6366f1;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #4338ca;
+            font-size: 0.95rem;
+        }
+        .result-box {
+            background-color: #f0f9ff;
+            border: 2px solid #3b82f6;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 25px;
+        }
+        .result-amount {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1d4ed8;
+            margin-top: 10px;
+        }
+        .result-label {
+            font-size: 1.1rem;
+            color: #334155;
+        }
+        .days-display {
+            font-size: 0.9rem;
+            color: #64748b;
+            margin-top: 5px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">イラスト簡易見積もり表</h1>
+
+        <!-- クライアント希望納期 (日付で入力) を一番上に移動 -->
+        <div class="mb-6">
+            <label for="deliveryDate" class="block text-gray-700 text-sm mb-2">ご希望の納期を入力ください:</label>
+            <input type="date" id="deliveryDate" class="block w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <p id="deliveryDaysDisplay" class="days-display"></p> <!-- 日数表示用の要素 -->
+        </div>
+
+        <!-- 想定作業日数を真ん中に移動 -->
+        <div class="mb-6">
+            <label for="workDays" class="block text-gray-700 text-sm mb-2">下記を参考に作業日数を入力ください (3日〜60日):</label>
+            <select id="workDays" class="block w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <!-- JavaScriptでオプションを生成 -->
+            </select>
+        </div>
+
+        <!-- 作業日数目安をその下に移動 -->
+        <div class="info-box mb-6">
+            <p class="font-semibold mb-2">作業日数目安:</p>
+            <ul class="list-disc list-inside">
+                <li>キャラクターのみ・上半身: 3日</li>
+                <li>キャラクターのみ・全身: 7日</li>
+                <li>背景のみ: 10日</li>
+                <li>背景＋キャラクター: 14日</li>
+            </ul>
+            <p class="mt-2 text-sm">（上記は平均的な作業日数です）</p>
+        </div>
+
+        <div class="result-box">
+            <p class="result-label">見積もり金額</p>
+            <p id="estimatedAmount" class="result-amount">0円</p>
+        </div>
+    </div>
+
+    <script>
+        // DOM要素の取得
+        const workDaysSelect = document.getElementById('workDays');
+        const deliveryDateInput = document.getElementById('deliveryDate');
+        const deliveryDaysDisplay = document.getElementById('deliveryDaysDisplay');
+        const estimatedAmountDisplay = document.getElementById('estimatedAmount');
+
+        // 作業日数のプルダウンオプションを生成
+        for (let i = 3; i <= 60; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = `${i}日`;
+            workDaysSelect.appendChild(option);
+        }
+
+        // 初期値の設定
+        workDaysSelect.value = 7; // 初期選択を7日に設定
+
+        // 今日の日付を取得し、input[type="date"]の初期値に設定
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1); // 最低でも明日以降の日付を選択できるように
+
+        const year = tomorrow.getFullYear();
+        const month = String(tomorrow.getMonth() + 1).padStart(2, '0'); // 月は0から始まるため+1
+        const day = String(tomorrow.getDate()).padStart(2, '0');
+        deliveryDateInput.value = `${year}-${month}-${day}`; // YYYY-MM-DD形式で設定
+
+        // 見積もり金額を計算する関数
+        function calculateEstimate() {
+            const workDays = parseInt(workDaysSelect.value);
+            const dailyRate = 500; // 1日あたりの単価
+            const rushFeePerDay = 1000; // 納期超過1日あたりの追加料金
+
+            // 選択された納期日付を取得
+            const selectedDate = new Date(deliveryDateInput.value);
+            // 今日の日付を取得（時刻を00:00:00に設定して正確な日数を計算）
+            const currentDate = new Date();
+            currentDate.setHours(0, 0, 0, 0);
+
+            // 日付が有効でない場合は処理を中断
+            if (isNaN(selectedDate.getTime())) {
+                deliveryDaysDisplay.textContent = '有効な日付を入力してください';
+                estimatedAmountDisplay.textContent = '0円';
+                return;
+            }
+
+            // 納期までの日数を計算
+            // タイムスタンプの差をミリ秒で取得し、日単位に変換
+            const timeDiff = selectedDate.getTime() - currentDate.getTime();
+            // 1日あたりのミリ秒数 (24時間 * 60分 * 60秒 * 1000ミリ秒)
+            const oneDay = 1000 * 60 * 60 * 24;
+            let deliveryDays = Math.ceil(timeDiff / oneDay); // 小数点以下を切り上げ（今日を含めて計算するため）
+
+            // 納期が今日以前の場合は0日とする
+            if (deliveryDays < 0) {
+                deliveryDays = 0;
+            }
+
+            deliveryDaysDisplay.textContent = `（記入日からの日数: ${deliveryDays}日）`;
+
+            let basePrice = workDays * dailyRate; // 基本料金
+            let finalAmount = basePrice;
+            let rushFee = 0;
+
+            // 納期超過の場合の料金計算
+            if (deliveryDays < workDays) {
+                const daysOver = workDays - deliveryDays; // 超過日数
+                rushFee = daysOver * rushFeePerDay;
+                finalAmount += rushFee;
+            }
+
+            // 最低料金の適用
+            // プルダウンで3日以下は選べないが、念のため
+            if (workDays < 3) {
+                finalAmount = Math.max(finalAmount, 1500);
+            } else if (workDays === 3) { // 作業日数が3日の場合、最低料金1500円を保証
+                finalAmount = Math.max(finalAmount, 1500 + rushFee);
+            }
+
+            estimatedAmountDisplay.textContent = `${finalAmount.toLocaleString()}円`;
+        }
+
+        // イベントリスナーの設定
+        workDaysSelect.addEventListener('change', calculateEstimate);
+        deliveryDateInput.addEventListener('input', calculateEstimate);
+
+        // ページ読み込み時に一度計算を実行
+        calculateEstimate();
+    </script>
+</body>
+</html>
